@@ -15,19 +15,21 @@ function _backup(file){
 
 }
 
-function _setMetadata(){
-    return _checkIndex(function(isNew){
-        if(!isNew){
-            __createMetadata();
+function _setMetadata(file, metadata){
+    return _checkIndex(function(idIfExisting){
+        if(idIfExisting &&  /[0-9a-fA-F]{32}/.test(idIfExisting)){
+           //it already exists, we just want to update the metadata
+            __updateMetadata();
         }
         else{
-            __updateMetadata();
+            //this is a new entry, we'll create the entity
+            __createMetadata();
         }
     });
 }
 
 function _checkIndex(){
-
+       structr.rest.find
 }
 
 function __createMetadata(){
@@ -41,14 +43,14 @@ function __updateMetadata(){
 function _processFile(file, metadata){
     var hash, exif;
 
-    return _hashFile()
+    return _hashFile(file)
         .then(function(hash){
             return _parseExif();
         })
         .then(function(exif){
-            return _setMetadata();
+            return _setMetadata(file, metadata);
         })
-        .then(function(){
+        .then(function(){              file
             _backup();
         });
 }
