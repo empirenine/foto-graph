@@ -1,0 +1,31 @@
+{
+  "name": "foto-graph",
+  "version": "0.0.1",
+  "description": "A digital image asset management application",
+  "main": "foto-graph.js",
+  "scripts": {
+    "test": "tests.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/empirenine/foto-graph.git"
+  },
+  "keywords": [
+    "graph",
+    "photograph",
+    "backup",
+    "imagge",
+    "catalog",
+    "tagging",
+    "image"
+  ],
+  "author": "Mike MacDonald & Eric Schleicher",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/empirenine/foto-graph/issues"
+  },
+  "homepage": "https://github.com/empirenine/foto-graph#readme",
+  "dependencies": {
+    "q": "^1.4.1"
+  }
+}
