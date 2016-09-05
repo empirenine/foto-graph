@@ -5,13 +5,32 @@ var b2 = require('backblaze-b2');
 var exif = require('exif-parser');
 var md5File = require('md5-file');
 var structr = require('structr-4-tasks');
+var config = require('../config') //<-- this should also include loading credentials that will be used by the externals service (until there are user/account contexts)
 
 function _parseExif(file, scanLength){
     //the exif tag should be at the beginning of the file.
-    scanLength = scanLength || 16003;
+    scanLength = scanLength || 65635;
     return Q.promise(function(resolvePromise, rejectPromise){
         try{
-            exif.parseTags(fs.read(path.resolve(file),null,0,scanLength))
+            var readBuffer = new Buffer(scanLength);
+            fs.open(path.resolve(file),'r', function(err, fd){
+                if(err){
+                    rejectPromise(err);
+                }
+                else{
+                    fs.read(fd, readBuffer, 0, scanLength, 0, function(err, data,thatBuffer){
+                        if (err){
+                            rejectPromise(err);
+                        }
+                        else{
+                            exifParser = exif.create(thatBuffer);
+                            var result = exifParser.parse();
+                            console.log(JSON.stringify(result, null, "\t"));
+                            resolvePromise(result);
+                        }
+                    });
+                }
+            });
         }
         catch(e){
             rejectPromise(e);
@@ -37,17 +56,18 @@ function _hashFile(file){
     });
 }
 
-function _backup(file){
+function _backup(file, details){
     return Q.promise(function(resolvePromise, rejectPromise){
         try{
-            b2.uploadFile(b2.createClient("xx", "xx"), function(err, data){
+            resolvePromise(details.hash);
+/*            b2.uploadFile(b2.createClient("xx", "xx"), function(err, data){
                 if(err){
                     rejectPromise(err);
                 }
                 else{
                     resolvePromise(data);
                 }
-            });
+            });*/
         }
         catch(e){
             rejectPromise(e);
@@ -55,49 +75,72 @@ function _backup(file){
     });
 }
 
-function _setMetadata(file, metadata){
-    return _checkIndex(function(idIfExisting){
-        if(idIfExisting &&  /[0-9a-fA-F]{32}/.test(idIfExisting)){
-           //it already exists, we just want to update the metadata
-            __updateMetadata();
-        }
-        else{
-            //this is a new entry, we'll create the entity
-            __createMetadata();
-        }
-    });
+function _getFileMetadata(file, metadata){
+    //todo replace with real file metadata - https://github.com/empirenine/foto-graph/issues/1
+    if (metadata && metadata.file){
+        return metadata.file;
+    }
+    //otherwise make something up and hand that back
+    return {size:0, dateCreated:"", dateModified:""};
 }
 
-function _checkIndex(){
-       structr.rest.find
+function _checkAssetIndex(hash){
+    //force new file that we haven't found
+    return false;
 }
 
-function __createMetadata(){
-
-}
-
-function __updateMetadata(){
-
-}
 
 function _processFile(file, metadata){
-    var hash, exif;
-
-    return _hashFile(file)
-        .then(function(hash){
-            return _parseExif();
-        })
-        .then(function(exif){
-            return _setMetadata(file, metadata);
-        })
-        .then(function(){              file
-            _backup();
-        });
+    var fileDetails = {};
+    try{
+        return _hashFile(file)
+            .then(function(hash){
+                fileDetails.hash = hash;
+                return _parseExif(file);
+            })
+            .then(function(exif){
+                //attach the rest of the metadata
+                fileDetails.exif = exif;
+                fileDetails.userMetadata = metadata;
+                fileDetails.sysMetadata = _getFileMetadata(file, metadata, exif);
+                return fileDetails;
+            })
+            .then(function(details){
+                //inform the next step whether we're going to upload or update?
+                return _checkAssetIndex(details.hash);
+            })
+            .then(function(assetExists){
+                if (assetExists){
+                    return;
+                }
+                else{
+                    //we're going to backup the file
+                    return _backup(file, fileDetails);
+                }
+            })
+            .then(function(result){
+                if(result){
+                    return fileDetails;
+                }
+                else{
+                    return Q.reject(new Error("Unexpectedly got an empty result"));
+                }
+            })
+            .catch(function(e){
+                throw e;
+            });
+    }
+    catch(e){
+        var errCouldntProcessFile = new Error("the request to process the file could not be completed, see causeBy for more information");
+        errCouldntProcessFile.causedBy = e;
+        return Q.reject(errCouldntProcessFile);
+    }
 }
 
 
 var imageFileCtlr = {
-    processFile: _processFile
+    processFile: _processFile,
+    dummyFail: function(value){return Q.reject(new Error(value));}
 };
 
 module.exports =imageFileCtlr;

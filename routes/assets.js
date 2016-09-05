@@ -3,25 +3,36 @@
  */
 var express = require('express');
 var router = express.Router();
+var imageFile = require('../controllers/imageFile');
 
 /* GET base route page. */
 router.get('/', function(req, res, next) {
-    res.render('index', { layout: "layout2",title: 'Foto-Graph Assets' });
+    var options = {
+        layout: "layout2",
+        title: 'Foto-Graph Assets'
+    };
+    res.render('assets', options);
 });
 
 
 router.post('/read-local/:filename', function(req, res, next){
+    req.params.filename = "C:/Users/user/s5-image-recovery/[000181].jpg";
+
+    var fileProcessResult;
     if (!req.params.filename){
-        result = "fail"
+        fileProcessResult = imageFile.dummyFail("failed because you didn't provide a real filename");
     }
-    var exif = require('exif-parser');
-    fs = require('fs');
+    var meta = {tags:["Evan","Leah", "Family", "Zoo"]};
+    fileProcessResult = imageFile.processFile(req.params.filename, meta);
 
-    fs.read()
-    var templateData = {
-
-    };
-    res.render('asset-result', templateData)
+    fileProcessResult
+        .then(function(result){
+            res.render('assets', result);
+        })
+        .catch(function(error){
+            res.render('error', {message: error.message, error:error});
+        })
+        .done();
 });
 
 module.exports = router;
