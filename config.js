@@ -1,3 +1,5 @@
-/**
- * Created by user on 9/5/2016.
- */
+module.exports = {
+    credentials:{
+        "backblaze":{}
+    }
+};
